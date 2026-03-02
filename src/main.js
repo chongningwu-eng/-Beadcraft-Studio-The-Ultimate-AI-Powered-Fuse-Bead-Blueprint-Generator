@@ -11,6 +11,7 @@ import { initRenderer, renderGrid, setView, setZoom, calcFitZoom, highlightColor
 import { generateBOM, sortBOM } from './modules/bomGenerator.js';
 import { exportPNG, exportPDF, exportAll } from './modules/exporter.js';
 import { generatePixelArtRedraw, generatePixelArtCreate, getApiKey, setApiKey, hasApiKey } from './modules/geminiService.js';
+import { signUp, signIn, signOut, onAuthStateChange, getCurrentUser } from './services/authService.js';
 
 // ==================== STATE ====================
 let sourceImage = null;      // original uploaded image
@@ -68,6 +69,25 @@ const createHInput = $('#create-h');
 
 // Modal elements
 const previewModal = $('#preview-modal');
+
+// Auth elements
+const loginBtn = $('#login-btn');
+const userMenu = $('#user-menu');
+const userMenuBtn = $('#user-menu-btn');
+const userDropdown = $('#user-dropdown');
+const userDisplayName = $('#user-display-name');
+const logoutBtn = $('#logout-btn');
+const authModal = $('#auth-modal');
+const authModalTitle = $('#auth-modal-title');
+const authModalClose = $('#auth-modal-close');
+const authEmail = $('#auth-email');
+const authPassword = $('#auth-password');
+const authSubmit = $('#auth-submit');
+const authError = $('#auth-error');
+const authToggle = $('#auth-toggle');
+const authToggleText = $('#auth-toggle-text');
+let authMode = 'login'; // 'login' | 'register'
+let currentUser = null;
 const modalCanvas = $('#modal-canvas');
 const modalCanvasContainer = $('#modal-canvas-container');
 const modalZoomLevel = $('#modal-zoom-level');
@@ -87,6 +107,9 @@ async function init() {
         // Load saved API key
         apiKeyInput.value = getApiKey();
 
+        // Init auth state listener
+        initAuth();
+
         console.log('[BeadCraft] Studio V2 ready!');
     } catch (err) {
         console.error('[BeadCraft] Init failed:', err);
@@ -94,8 +117,134 @@ async function init() {
     }
 }
 
+// ==================== AUTH ====================
+function initAuth() {
+    onAuthStateChange((event, session) => {
+        currentUser = session?.user ?? null;
+        updateAuthUI();
+        if (event === 'SIGNED_IN') {
+            showToast('登录成功！');
+            closeAuthModal();
+        } else if (event === 'SIGNED_OUT') {
+            showToast('已退出登录');
+        }
+    });
+    // Check initial session
+    getCurrentUser().then(user => {
+        currentUser = user;
+        updateAuthUI();
+    });
+}
+
+function updateAuthUI() {
+    if (currentUser) {
+        loginBtn.hidden = true;
+        userMenu.hidden = false;
+        userDisplayName.textContent = currentUser.email?.split('@')[0] || '用户';
+    } else {
+        loginBtn.hidden = false;
+        userMenu.hidden = true;
+        userDropdown.hidden = true;
+    }
+}
+
+function openAuthModal() {
+    authMode = 'login';
+    authModalTitle.textContent = '登录';
+    authSubmit.textContent = '登录';
+    authToggleText.textContent = '还没有账号？';
+    authToggle.textContent = '注册';
+    authEmail.value = '';
+    authPassword.value = '';
+    authError.hidden = true;
+    authModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => authEmail.focus(), 100);
+}
+
+function closeAuthModal() {
+    authModal.hidden = true;
+    document.body.style.overflow = '';
+}
+
+async function handleAuthSubmit() {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+
+    if (!email || !password) {
+        authError.textContent = '请填写邮箱和密码';
+        authError.hidden = false;
+        return;
+    }
+    if (password.length < 6) {
+        authError.textContent = '密码至少需要 6 位';
+        authError.hidden = false;
+        return;
+    }
+
+    authSubmit.disabled = true;
+    authSubmit.textContent = authMode === 'login' ? '登录中...' : '注册中...';
+    authError.hidden = true;
+
+    try {
+        let result;
+        if (authMode === 'login') {
+            result = await signIn(email, password);
+        } else {
+            result = await signUp(email, password);
+        }
+
+        if (result.error) {
+            const msg = result.error.message;
+            if (msg.includes('Invalid login')) authError.textContent = '邮箱或密码错误';
+            else if (msg.includes('already registered')) authError.textContent = '该邮箱已注册，请直接登录';
+            else if (msg.includes('valid email')) authError.textContent = '请输入有效的邮箱地址';
+            else authError.textContent = msg;
+            authError.hidden = false;
+        } else if (authMode === 'register' && result.user) {
+            showToast('注册成功！请检查邮箱完成验证');
+            closeAuthModal();
+        }
+    } catch (err) {
+        authError.textContent = '网络错误，请稍后重试';
+        authError.hidden = false;
+    } finally {
+        authSubmit.disabled = false;
+        authSubmit.textContent = authMode === 'login' ? '登录' : '注册';
+    }
+}
+
 // ==================== EVENT BINDINGS ====================
 function bindEvents() {
+    // --- Auth ---
+    loginBtn.addEventListener('click', openAuthModal);
+    authModalClose.addEventListener('click', closeAuthModal);
+    authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) closeAuthModal();
+    });
+    authSubmit.addEventListener('click', handleAuthSubmit);
+    authPassword.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleAuthSubmit();
+    });
+    authToggle.addEventListener('click', () => {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        authModalTitle.textContent = authMode === 'login' ? '登录' : '注册';
+        authSubmit.textContent = authMode === 'login' ? '登录' : '注册';
+        authToggleText.textContent = authMode === 'login' ? '还没有账号？' : '已有账号？';
+        authToggle.textContent = authMode === 'login' ? '注册' : '登录';
+        authError.hidden = true;
+    });
+    userMenuBtn.addEventListener('click', () => {
+        userDropdown.hidden = !userDropdown.hidden;
+    });
+    document.addEventListener('click', (e) => {
+        if (!userMenu.contains(e.target)) userDropdown.hidden = true;
+    });
+    logoutBtn.addEventListener('click', async () => {
+        userDropdown.hidden = true;
+        await signOut();
+    });
+
     // --- Upload ---
     uploadZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFileSelect);

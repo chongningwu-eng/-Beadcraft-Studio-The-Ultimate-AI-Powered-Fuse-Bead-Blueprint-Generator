@@ -1225,6 +1225,192 @@
     }
 }
 
+/* ========== MODAL OVERLAY (shared) ========== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(45, 42, 38, 0.4);
+    backdrop-filter: blur(4px);
+}
+
+/* ========== AUTH MODAL ========== */
+.auth-modal {
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border-light);
+    border-radius: var(--r-lg);
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    animation: fadeInUp 0.3s ease;
+}
+
+.auth-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-5) var(--sp-6) 0;
+}
+
+.auth-modal__title {
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-bold);
+    color: var(--c-text);
+    margin: 0;
+}
+
+.auth-modal__body {
+    padding: var(--sp-5) var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.auth-modal__error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    border-radius: var(--r-sm);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.auth-field__label {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semi);
+    color: var(--c-text-muted);
+}
+
+.auth-field__input {
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-base);
+    font-family: var(--ff-body);
+    color: var(--c-text);
+    background: var(--c-bg);
+    transition: border-color var(--tr-fast), box-shadow var(--tr-fast);
+}
+
+.auth-field__input:focus {
+    outline: none;
+    border-color: var(--c-cta);
+    box-shadow: 0 0 0 3px rgba(232, 115, 74, 0.1);
+}
+
+.auth-modal__submit {
+    width: 100%;
+    margin-top: var(--sp-2);
+}
+
+.auth-modal__submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-6) var(--sp-5);
+    font-size: var(--fs-sm);
+    color: var(--c-text-light);
+}
+
+.auth-modal__toggle {
+    background: none;
+    border: none;
+    color: var(--c-cta);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semi);
+    cursor: pointer;
+    padding: 0;
+    transition: color var(--tr-fast);
+}
+
+.auth-modal__toggle:hover {
+    color: var(--c-accent);
+}
+
+/* ========== USER MENU ========== */
+.user-menu {
+    position: relative;
+}
+
+.user-menu__trigger {
+    gap: var(--sp-2);
+}
+
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--c-cta-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-cta);
+    overflow: hidden;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border-light);
+    border-radius: var(--r-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    padding: var(--sp-2);
+    z-index: 100;
+    animation: fadeInUp 0.15s ease;
+}
+
+.user-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    border: none;
+    background: none;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    color: var(--c-text);
+    cursor: pointer;
+    transition: background var(--tr-fast);
+}
+
+.user-dropdown__item:hover {
+    background: var(--c-bg-hover);
+}
+
+.user-dropdown__item--danger {
+    color: #dc2626;
+}
+
+.user-dropdown__item--danger:hover {
+    background: #fef2f2;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
     .upload-section {
