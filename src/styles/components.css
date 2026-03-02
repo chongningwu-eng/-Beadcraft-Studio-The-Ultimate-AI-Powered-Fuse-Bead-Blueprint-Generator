@@ -1411,6 +1411,200 @@
     background: #fef2f2;
 }
 
+/* ========== MODAL OVERLAY (shared) ========== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(45, 42, 38, 0.4);
+    backdrop-filter: blur(4px);
+}
+
+/* ========== AUTH MODAL ========== */
+.auth-modal {
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border-light);
+    border-radius: var(--r-lg);
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    animation: fadeInUp 0.3s ease;
+}
+
+.auth-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-6) var(--sp-6) 0;
+}
+
+.auth-modal__title {
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-bold);
+    color: var(--c-text);
+    margin: 0;
+}
+
+.auth-modal__body {
+    padding: var(--sp-5) var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.auth-modal__error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    border-radius: var(--r-sm);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+}
+
+/* Google OAuth Button */
+.auth-google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    background: #fff;
+    border: 1.5px solid var(--c-border);
+    border-radius: var(--r-md);
+    font-size: var(--fs-base);
+    font-weight: var(--fw-semi);
+    font-family: var(--ff-body);
+    color: var(--c-text);
+    cursor: pointer;
+    transition: all var(--tr-fast);
+}
+
+.auth-google-btn:hover {
+    border-color: var(--c-text-muted);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.auth-google-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--c-text-light);
+    font-size: var(--fs-sm);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--c-border-light);
+}
+
+/* OTP Steps */
+.auth-otp-step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.auth-otp-hint {
+    font-size: var(--fs-sm);
+    color: var(--c-text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.auth-otp-hint strong {
+    color: var(--c-text);
+    font-weight: var(--fw-semi);
+}
+
+/* Auth form inputs */
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.auth-field__label {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semi);
+    color: var(--c-text-muted);
+}
+
+.auth-field__input {
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-base);
+    font-family: var(--ff-body);
+    color: var(--c-text);
+    background: var(--c-bg);
+    transition: border-color var(--tr-fast), box-shadow var(--tr-fast);
+}
+
+.auth-field__input:focus {
+    outline: none;
+    border-color: var(--c-cta);
+    box-shadow: 0 0 0 3px rgba(232, 115, 74, 0.1);
+}
+
+.auth-field__input--otp {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-xl);
+    text-align: center;
+    letter-spacing: 8px;
+    font-weight: var(--fw-bold);
+}
+
+.auth-modal__submit {
+    width: 100%;
+}
+
+.auth-modal__submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-6) var(--sp-5);
+    font-size: var(--fs-xs);
+    color: var(--c-text-light);
+}
+
+.auth-modal__toggle {
+    background: none;
+    border: none;
+    color: var(--c-cta);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semi);
+    cursor: pointer;
+    padding: 0;
+    margin-top: var(--sp-1);
+    align-self: center;
+    transition: color var(--tr-fast);
+}
+
+.auth-modal__toggle:hover {
+    color: var(--c-accent);
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
     .upload-section {

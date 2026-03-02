@@ -11,7 +11,7 @@ import { initRenderer, renderGrid, setView, setZoom, calcFitZoom, highlightColor
 import { generateBOM, sortBOM } from './modules/bomGenerator.js';
 import { exportPNG, exportPDF, exportAll } from './modules/exporter.js';
 import { generatePixelArtRedraw, generatePixelArtCreate, getApiKey, setApiKey, hasApiKey } from './modules/geminiService.js';
-import { signUp, signIn, signOut, onAuthStateChange, getCurrentUser } from './services/authService.js';
+import { signInWithGoogle, sendOtp, verifyOtp, signOut, onAuthStateChange, getCurrentUser } from './services/authService.js';
 
 // ==================== STATE ====================
 let sourceImage = null;      // original uploaded image
@@ -78,15 +78,18 @@ const userDropdown = $('#user-dropdown');
 const userDisplayName = $('#user-display-name');
 const logoutBtn = $('#logout-btn');
 const authModal = $('#auth-modal');
-const authModalTitle = $('#auth-modal-title');
 const authModalClose = $('#auth-modal-close');
 const authEmail = $('#auth-email');
-const authPassword = $('#auth-password');
-const authSubmit = $('#auth-submit');
 const authError = $('#auth-error');
-const authToggle = $('#auth-toggle');
-const authToggleText = $('#auth-toggle-text');
-let authMode = 'login'; // 'login' | 'register'
+const googleLoginBtn = $('#google-login-btn');
+const sendOtpBtn = $('#send-otp-btn');
+const otpStepEmail = $('#otp-step-email');
+const otpStepCode = $('#otp-step-code');
+const authOtpCode = $('#auth-otp-code');
+const otpEmailDisplay = $('#otp-email-display');
+const verifyOtpBtn = $('#verify-otp-btn');
+const resendOtpBtn = $('#resend-otp-btn');
+let pendingEmail = '';
 let currentUser = null;
 const modalCanvas = $('#modal-canvas');
 const modalCanvasContainer = $('#modal-canvas-container');
@@ -149,14 +152,13 @@ function updateAuthUI() {
 }
 
 function openAuthModal() {
-    authMode = 'login';
-    authModalTitle.textContent = '登录';
-    authSubmit.textContent = '登录';
-    authToggleText.textContent = '还没有账号？';
-    authToggle.textContent = '注册';
+    // Reset to step 1
+    otpStepEmail.hidden = false;
+    otpStepCode.hidden = true;
     authEmail.value = '';
-    authPassword.value = '';
+    authOtpCode.value = '';
     authError.hidden = true;
+    pendingEmail = '';
     authModal.hidden = false;
     document.body.style.overflow = 'hidden';
     setTimeout(() => authEmail.focus(), 100);
@@ -167,50 +169,73 @@ function closeAuthModal() {
     document.body.style.overflow = '';
 }
 
-async function handleAuthSubmit() {
+async function handleGoogleLogin() {
+    authError.hidden = true;
+    const { error } = await signInWithGoogle();
+    if (error) {
+        authError.textContent = 'Google 登录失败：' + error.message;
+        authError.hidden = false;
+    }
+}
+
+async function handleSendOtp() {
     const email = authEmail.value.trim();
-    const password = authPassword.value;
-
-    if (!email || !password) {
-        authError.textContent = '请填写邮箱和密码';
-        authError.hidden = false;
-        return;
-    }
-    if (password.length < 6) {
-        authError.textContent = '密码至少需要 6 位';
+    if (!email) {
+        authError.textContent = '请输入邮箱地址';
         authError.hidden = false;
         return;
     }
 
-    authSubmit.disabled = true;
-    authSubmit.textContent = authMode === 'login' ? '登录中...' : '注册中...';
+    sendOtpBtn.disabled = true;
+    sendOtpBtn.textContent = '发送中...';
     authError.hidden = true;
 
     try {
-        let result;
-        if (authMode === 'login') {
-            result = await signIn(email, password);
-        } else {
-            result = await signUp(email, password);
-        }
-
-        if (result.error) {
-            const msg = result.error.message;
-            if (msg.includes('Invalid login')) authError.textContent = '邮箱或密码错误';
-            else if (msg.includes('already registered')) authError.textContent = '该邮箱已注册，请直接登录';
-            else if (msg.includes('valid email')) authError.textContent = '请输入有效的邮箱地址';
-            else authError.textContent = msg;
+        const { error } = await sendOtp(email);
+        if (error) {
+            authError.textContent = error.message;
             authError.hidden = false;
-        } else if (authMode === 'register' && result.user) {
-            showToast('注册成功！请检查邮箱完成验证');
-            closeAuthModal();
+        } else {
+            pendingEmail = email;
+            otpStepEmail.hidden = true;
+            otpStepCode.hidden = false;
+            otpEmailDisplay.textContent = email;
+            setTimeout(() => authOtpCode.focus(), 100);
         }
     } catch (err) {
         authError.textContent = '网络错误，请稍后重试';
         authError.hidden = false;
     } finally {
-        authSubmit.disabled = false;
-        authSubmit.textContent = authMode === 'login' ? '登录' : '注册';
+        sendOtpBtn.disabled = false;
+        sendOtpBtn.textContent = '发送验证码';
+    }
+}
+
+async function handleVerifyOtp() {
+    const code = authOtpCode.value.trim();
+    if (!code || code.length < 6) {
+        authError.textContent = '请输入 6 位验证码';
+        authError.hidden = false;
+        return;
+    }
+
+    verifyOtpBtn.disabled = true;
+    verifyOtpBtn.textContent = '验证中...';
+    authError.hidden = true;
+
+    try {
+        const { error } = await verifyOtp(pendingEmail, code);
+        if (error) {
+            authError.textContent = '验证码错误或已过期';
+            authError.hidden = false;
+        }
+        // Success handled by onAuthStateChange → closeAuthModal
+    } catch (err) {
+        authError.textContent = '网络错误，请稍后重试';
+        authError.hidden = false;
+    } finally {
+        verifyOtpBtn.disabled = false;
+        verifyOtpBtn.textContent = '确认登录';
     }
 }
 
@@ -222,16 +247,19 @@ function bindEvents() {
     authModal.addEventListener('click', (e) => {
         if (e.target === authModal) closeAuthModal();
     });
-    authSubmit.addEventListener('click', handleAuthSubmit);
-    authPassword.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleAuthSubmit();
+    googleLoginBtn.addEventListener('click', handleGoogleLogin);
+    sendOtpBtn.addEventListener('click', handleSendOtp);
+    authEmail.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSendOtp();
     });
-    authToggle.addEventListener('click', () => {
-        authMode = authMode === 'login' ? 'register' : 'login';
-        authModalTitle.textContent = authMode === 'login' ? '登录' : '注册';
-        authSubmit.textContent = authMode === 'login' ? '登录' : '注册';
-        authToggleText.textContent = authMode === 'login' ? '还没有账号？' : '已有账号？';
-        authToggle.textContent = authMode === 'login' ? '注册' : '登录';
+    verifyOtpBtn.addEventListener('click', handleVerifyOtp);
+    authOtpCode.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleVerifyOtp();
+    });
+    resendOtpBtn.addEventListener('click', async () => {
+        otpStepCode.hidden = true;
+        otpStepEmail.hidden = false;
+        authEmail.value = pendingEmail;
         authError.hidden = true;
     });
     userMenuBtn.addEventListener('click', () => {
