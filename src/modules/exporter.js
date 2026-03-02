@@ -1,0 +1,165 @@
+/* ========================================
+   Export Module — PNG & PDF
+   ======================================== */
+
+import { jsPDF } from 'jspdf';
+import { renderGrid, getCanvasDataURL, initRenderer, getCanvasDimensions } from './canvasRenderer.js';
+
+/**
+ * Download the canvas as a PNG image
+ * @param {Object} gridResult - The grid result from processImage
+ * @param {'clean'|'blueprint'} view - Which view to export
+ */
+export function exportPNG(gridResult, view = 'blueprint') {
+    // Create a temporary offscreen canvas for high-res export
+    const offCanvas = document.createElement('canvas');
+    const savedCanvas = document.getElementById('bead-canvas');
+
+    // Render at fixed zoom for export
+    initRenderer(offCanvas);
+    renderGrid(gridResult, view, 1.5, null);
+
+    const dataURL = offCanvas.toDataURL('image/png');
+
+    // Restore original canvas
+    initRenderer(savedCanvas);
+    renderGrid(gridResult);
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `beadcraft-${view}-${gridResult.width}x${gridResult.height}.png`;
+    link.href = dataURL;
+    link.click();
+}
+
+/**
+ * Export chart and BOM as PDF
+ * @param {Object} gridResult
+ * @param {{ items: any[], totalBeads: number, totalColors: number }} bom
+ */
+export function exportPDF(gridResult, bom) {
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentW = pageW - margin * 2;
+
+    // ===== PAGE 1: Blueprint Chart =====
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.text('BeadCraft Studio', margin, margin + 5);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(140, 130, 121);
+    pdf.text(`Bead Pattern ${gridResult.width}×${gridResult.height}  |  ${bom.totalColors} colors  |  ${bom.totalBeads} beads`, margin, margin + 12);
+
+    // Render blueprint to offscreen canvas
+    const offCanvas = document.createElement('canvas');
+    const savedCanvas = document.getElementById('bead-canvas');
+
+    initRenderer(offCanvas);
+    renderGrid(gridResult, 'blueprint', 2, null);
+
+    const imgData = offCanvas.toDataURL('image/png');
+
+    // Restore
+    initRenderer(savedCanvas);
+    renderGrid(gridResult);
+
+    // Calculate image dimensions to fit on page
+    const dims = { w: offCanvas.width, h: offCanvas.height };
+    const maxImgW = contentW;
+    const maxImgH = pageH - margin * 2 - 25;
+    const scale = Math.min(maxImgW / dims.w, maxImgH / dims.h);
+    const imgW = dims.w * scale;
+    const imgH = dims.h * scale;
+    const imgX = margin + (contentW - imgW) / 2;
+
+    pdf.addImage(imgData, 'PNG', imgX, margin + 18, imgW, imgH);
+
+    // ===== PAGE 2: BOM Table =====
+    pdf.addPage();
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(26, 24, 21);
+    pdf.text('Materials List (BOM)', margin, margin + 5);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(140, 130, 121);
+    pdf.text(`Total: ${bom.totalBeads} beads  |  ${bom.totalColors} colors`, margin, margin + 12);
+
+    // Table header
+    let tableY = margin + 20;
+    const colX = [margin, margin + 12, margin + 30, margin + 80, margin + 130];
+
+    pdf.setFillColor(240, 235, 227);
+    pdf.rect(margin, tableY - 4, contentW, 8, 'F');
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(45, 42, 38);
+    pdf.text('#', colX[0], tableY);
+    pdf.text('Color', colX[1], tableY);
+    pdf.text('Name', colX[2], tableY);
+    pdf.text('Code', colX[3], tableY);
+    pdf.text('Count', colX[4], tableY);
+
+    tableY += 8;
+
+    // Table rows
+    const sortedItems = [...bom.items].sort((a, b) => b.count - a.count);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+
+    sortedItems.forEach((item, i) => {
+        if (tableY > pageH - margin - 10) {
+            pdf.addPage();
+            tableY = margin + 10;
+        }
+
+        // Alternating row bg
+        if (i % 2 === 0) {
+            pdf.setFillColor(250, 246, 241);
+            pdf.rect(margin, tableY - 3, contentW, 6, 'F');
+        }
+
+        // Color swatch
+        const [r, g, b] = [item.r, item.g, item.b];
+        pdf.setFillColor(r, g, b);
+        pdf.rect(colX[1], tableY - 2.5, 5, 5, 'F');
+        pdf.setDrawColor(200, 195, 190);
+        pdf.rect(colX[1], tableY - 2.5, 5, 5, 'S');
+
+        // Text
+        pdf.setTextColor(45, 42, 38);
+        pdf.text(`${i + 1}`, colX[0], tableY);
+        pdf.text(item.name, colX[2], tableY);
+        pdf.setFont('courier', 'normal');
+        pdf.text(item.code, colX[3], tableY);
+        pdf.text(`${item.count}`, colX[4], tableY);
+        pdf.setFont('helvetica', 'normal');
+
+        tableY += 6;
+    });
+
+    // Footer
+    pdf.setFontSize(7);
+    pdf.setTextColor(180, 175, 170);
+    pdf.text('Generated by BeadCraft Studio — beadcraft.studio', margin, pageH - 8);
+
+    // Save
+    pdf.save(`beadcraft-${gridResult.width}x${gridResult.height}.pdf`);
+}
+
+/**
+ * Export both PNG and PDF
+ */
+export function exportAll(gridResult, bom) {
+    exportPNG(gridResult, 'blueprint');
+    setTimeout(() => exportPDF(gridResult, bom), 500);
+}
