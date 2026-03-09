@@ -11,7 +11,8 @@ import { initRenderer, renderGrid, setView, setZoom, calcFitZoom, highlightColor
 import { generateBOM, sortBOM } from './modules/bomGenerator.js';
 import { exportPNG, exportPDF, exportAll } from './modules/exporter.js';
 import { generatePixelArtRedraw, generatePixelArtCreate, getApiKey, setApiKey, hasApiKey } from './modules/geminiService.js';
-import { signInWithGoogle, sendOtp, verifyOtp, signOut, onAuthStateChange, getCurrentUser } from './services/authService.js';
+import { signInWithGoogle, signInAnonymously, sendOtp, verifyOtp, signOut, onAuthStateChange, getCurrentUser } from './services/authService.js';
+import { getBalance, redeemCode, purchaseCredits } from './services/creditService.js';
 
 // ==================== STATE ====================
 let sourceImage = null;      // original uploaded image
@@ -89,6 +90,18 @@ const authOtpCode = $('#auth-otp-code');
 const otpEmailDisplay = $('#otp-email-display');
 const verifyOtpBtn = $('#verify-otp-btn');
 const resendOtpBtn = $('#resend-otp-btn');
+const guestLoginBtn = $('#guest-login-btn');
+const creditsBadge = $('#credits-badge');
+const creditsCount = $('#credits-count');
+const creditsInfo = $('#credits-info');
+const redeemBtn = $('#redeem-btn');
+const purchaseBtn = $('#purchase-btn');
+const redeemModal = $('#redeem-modal');
+const redeemModalClose = $('#redeem-modal-close');
+const redeemCodeInput = $('#redeem-code-input');
+const redeemSubmit = $('#redeem-submit');
+const redeemError = $('#redeem-error');
+const redeemSuccess = $('#redeem-success');
 let pendingEmail = '';
 let currentUser = null;
 const modalCanvas = $('#modal-canvas');
@@ -143,12 +156,24 @@ function updateAuthUI() {
     if (currentUser) {
         loginBtn.hidden = true;
         userMenu.hidden = false;
-        userDisplayName.textContent = currentUser.email?.split('@')[0] || '用户';
+        const isAnon = currentUser.is_anonymous;
+        userDisplayName.textContent = isAnon ? '游客' : (currentUser.email?.split('@')[0] || '用户');
+        refreshCredits();
     } else {
         loginBtn.hidden = false;
         userMenu.hidden = true;
         userDropdown.hidden = true;
+        creditsBadge.hidden = true;
+        creditsInfo.hidden = true;
     }
+}
+
+async function refreshCredits() {
+    const balance = await getBalance();
+    creditsBadge.textContent = balance;
+    creditsBadge.hidden = false;
+    creditsCount.textContent = balance;
+    creditsInfo.hidden = false;
 }
 
 function openAuthModal() {
@@ -239,6 +264,75 @@ async function handleVerifyOtp() {
     }
 }
 
+async function handleGuestLogin() {
+    authError.hidden = true;
+    guestLoginBtn.disabled = true;
+    guestLoginBtn.querySelector('span').textContent = '进入中...';
+    try {
+        const { error } = await signInAnonymously();
+        if (error) {
+            authError.textContent = '游客登录失败：' + error.message;
+            authError.hidden = false;
+        }
+        // Success handled by onAuthStateChange → closeAuthModal
+    } catch (err) {
+        authError.textContent = '网络错误，请稍后重试';
+        authError.hidden = false;
+    } finally {
+        guestLoginBtn.disabled = false;
+        guestLoginBtn.querySelector('span').textContent = '游客模式快速体验';
+    }
+}
+
+function openRedeemModal() {
+    userDropdown.hidden = true;
+    redeemCodeInput.value = '';
+    redeemError.hidden = true;
+    redeemSuccess.hidden = true;
+    redeemModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => redeemCodeInput.focus(), 100);
+}
+
+function closeRedeemModal() {
+    redeemModal.hidden = true;
+    document.body.style.overflow = '';
+}
+
+async function handleRedeem() {
+    const code = redeemCodeInput.value.trim().toUpperCase();
+    if (!code) {
+        redeemError.textContent = '请输入邀请码';
+        redeemError.hidden = false;
+        redeemSuccess.hidden = true;
+        return;
+    }
+
+    redeemSubmit.disabled = true;
+    redeemSubmit.textContent = '兑换中...';
+    redeemError.hidden = true;
+    redeemSuccess.hidden = true;
+
+    try {
+        const result = await redeemCode(code);
+        if (result.success) {
+            redeemSuccess.textContent = result.message;
+            redeemSuccess.hidden = false;
+            redeemCodeInput.value = '';
+            refreshCredits();
+        } else {
+            redeemError.textContent = result.error;
+            redeemError.hidden = false;
+        }
+    } catch (err) {
+        redeemError.textContent = '网络错误，请稍后重试';
+        redeemError.hidden = false;
+    } finally {
+        redeemSubmit.disabled = false;
+        redeemSubmit.textContent = '兑换';
+    }
+}
+
 // ==================== EVENT BINDINGS ====================
 function bindEvents() {
     // --- Auth ---
@@ -262,6 +356,7 @@ function bindEvents() {
         authEmail.value = pendingEmail;
         authError.hidden = true;
     });
+    guestLoginBtn.addEventListener('click', handleGuestLogin);
     userMenuBtn.addEventListener('click', () => {
         userDropdown.hidden = !userDropdown.hidden;
     });
@@ -271,6 +366,22 @@ function bindEvents() {
     logoutBtn.addEventListener('click', async () => {
         userDropdown.hidden = true;
         await signOut();
+    });
+
+    // --- Credits / Redeem ---
+    redeemBtn.addEventListener('click', openRedeemModal);
+    redeemModalClose.addEventListener('click', closeRedeemModal);
+    redeemModal.addEventListener('click', (e) => {
+        if (e.target === redeemModal) closeRedeemModal();
+    });
+    redeemSubmit.addEventListener('click', handleRedeem);
+    redeemCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleRedeem();
+    });
+    purchaseBtn.addEventListener('click', async () => {
+        userDropdown.hidden = true;
+        const result = await purchaseCredits(10);
+        if (!result.success) showToast(result.error);
     });
 
     // --- Upload ---

@@ -1605,6 +1605,88 @@
     color: var(--c-accent);
 }
 
+/* ========== CREDITS BADGE ========== */
+.credits-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--c-cta);
+    color: #fff;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    font-family: var(--ff-mono);
+    line-height: 1;
+}
+
+/* ========== GUEST LOGIN BUTTON ========== */
+.auth-guest-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    background: transparent;
+    border: 1.5px dashed var(--c-border);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-medium);
+    font-family: var(--ff-body);
+    color: var(--c-text-muted);
+    cursor: pointer;
+    transition: all var(--tr-fast);
+}
+
+.auth-guest-btn:hover {
+    border-color: var(--c-cta);
+    color: var(--c-cta);
+    background: var(--c-cta-light);
+}
+
+/* ========== DROPDOWN EXTRAS ========== */
+.user-dropdown__credits {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--c-border-light);
+    margin-bottom: var(--sp-1);
+}
+
+.user-dropdown__credits-label {
+    font-size: var(--fs-xs);
+    color: var(--c-text-light);
+}
+
+.user-dropdown__credits-value {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-base);
+    font-weight: var(--fw-bold);
+    color: var(--c-cta);
+}
+
+.user-dropdown__divider {
+    height: 1px;
+    background: var(--c-border-light);
+    margin: var(--sp-1) 0;
+}
+
+/* ========== REDEEM SUCCESS ========== */
+.auth-modal__success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #16a34a;
+    border-radius: var(--r-sm);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semi);
+    line-height: 1.5;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
     .upload-section {

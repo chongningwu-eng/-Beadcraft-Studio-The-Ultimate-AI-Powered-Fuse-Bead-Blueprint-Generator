@@ -27,6 +27,17 @@ export function hasApiKey() {
     return !!getApiKey();
 }
 
+// ==================== API Mode Management ====================
+// 'own_key' = 用户自带 Key（免费无限）
+// 'credits' = 使用站长 API，每次扣 1 credit
+export function getApiMode() {
+    return localStorage.getItem('beadcraft_api_mode') || 'credits';
+}
+
+export function setApiMode(mode) {
+    localStorage.setItem('beadcraft_api_mode', mode);
+}
+
 // ==================== Image Utils ====================
 function imageToBase64(source) {
     const canvas = document.createElement('canvas');
@@ -41,8 +52,30 @@ function imageToBase64(source) {
 
 // ==================== Core API Call ====================
 async function callGeminiImageAPI(prompt, imageBase64, imageMimeType) {
-    const apiKey = getApiKey();
-    if (!apiKey) throw new Error('请先在设置中配置 Gemini API Key');
+    const apiMode = getApiMode();
+    let apiKey;
+
+    if (apiMode === 'own_key') {
+        apiKey = getApiKey();
+        if (!apiKey) throw new Error('请先在设置中配置 Gemini API Key');
+    } else {
+        // credits 模式：使用站长的 API Key
+        apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error('系统 API 暂不可用，请切换到自带 Key 模式');
+
+        // 先检查余额
+        const { getBalance, consumeCredit } = await import('../services/creditService.js');
+        const balance = await getBalance();
+        if (balance <= 0) {
+            throw new Error('AI 次数已用完，请兑换邀请码或购买次数');
+        }
+
+        // 预扣 1 次（先扣再调用，防止失败后白用）
+        const consumeResult = await consumeCredit();
+        if (!consumeResult.success) {
+            throw new Error(consumeResult.error || 'AI 次数扣除失败');
+        }
+    }
 
     const parts = [{ text: prompt }];
     if (imageBase64) {
@@ -61,7 +94,7 @@ async function callGeminiImageAPI(prompt, imageBase64, imageMimeType) {
         }
     };
 
-    console.log(`[Gemini] Calling ${GEMINI_MODEL}...`);
+    console.log(`[Gemini] Calling ${GEMINI_MODEL} (mode: ${apiMode})...`);
     console.log(`[Gemini] Prompt: ${prompt.substring(0, 120)}...`);
 
     let response;

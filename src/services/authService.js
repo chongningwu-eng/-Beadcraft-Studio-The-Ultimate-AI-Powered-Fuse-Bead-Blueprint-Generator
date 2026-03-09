@@ -16,6 +16,15 @@ export async function signInWithGoogle() {
 }
 
 /**
+ * 匿名登录（游客模式）
+ * 后续正式注册时 Supabase 自动升级，user_id 不变
+ */
+export async function signInAnonymously() {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    return { data, error };
+}
+
+/**
  * 发送邮箱 OTP 验证码
  * @param {string} email
  */
